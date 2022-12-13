@@ -35,7 +35,7 @@ docker-compose up -d
 
 * ブラウザ上で egrecpUNA の初回設定を行います。チューナー数の指定が再度必要です。
 
-注） docker-compose.sample (拡張子が「sample」のもの）は雛形のファイル、触る必要はありません。チューナーデバイスの手設定をさせたくなかったので無理やりシェル芸しているだけです。
+注） docker-compose.sample (拡張子が「sample」のもの）は雛形のファイル、触る必要は無いです。
 
 ### 以降の起動
 

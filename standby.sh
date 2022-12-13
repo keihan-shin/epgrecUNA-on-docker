@@ -257,10 +257,10 @@ if [ "$1" == "--refresh" ]; then
 
     docker-compose down
      
-    docker volume rm epgrec-db-vol \
-                     epgrec-app-vol \
-                     epgrec-schedule-vol
-    docker network rm epgrec-internal-net
+    docker volume rm epgrecuna-on-docker_epgrec-db-vol \
+                     epgrecuna-on-docker_epgrec-app-vol \
+                     epgrecuna-on-docker_epgrec-schedule-vol
+    docker network rm *epgrec-internal-net
     docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'` 
 
     # 乱暴な消し方になるため注意

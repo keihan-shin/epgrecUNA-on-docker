@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  epgrec-db:        # 接続先ホスト名
+    image: mysql:8.0
+    container_name: epgrec-db-cnt
+    volumes:
+      - epgrec-db-vol:/var/lib/mysql
+    environment:
+      MYSQL_USER: epgrec        # データベースのユーザー          
+      MYSQL_PASSWORD: epgrec        # データベースのパス
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: epgrec        # データベース名
+      TZ: Asia/Tokyo
+    networks:
+      - epgrec-internal-net
+    restart: "no"
+    command: mysqld --character-set-server=utf8 --collation-server=utf8_unicode_ci --sql-mode=""
+
+  epgrec-app:
+    build:
+      context: epgrec
+    image: epgrec-app:1.0
+    container_name: epgrec-app-cnt
+    volumes:
+      - epgrec-schedule-vol:/var/spool
+      - epgrec-app-vol:/var/www/html
+      - /var/recv:/var/www/html/video        # 録画ファイル保存先(/host/path:/var/www/html/video)
+    environment:
+      TZ: Asia/Tokyo
+    depends_on:
+      - epgrec-db
+    devices:
+%REPLACE_ME%
+    networks:
+      - epgrec-internal-net
+    ports:
+      - 8080:80
+    restart: "no"
+    tty: true
+
+networks:
+  epgrec-internal-net:
+
+volumes:
+  epgrec-db-vol:
+  epgrec-app-vol: 
+  epgrec-schedule-vol: 

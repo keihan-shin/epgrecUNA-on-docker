@@ -122,18 +122,38 @@ deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/deb-multimedia
 EOF
 }
 
+function standby_sury_php_apt () {
+
+    to_file_dir
+    cat <<EOF > sury.list
+    deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/sury-keyring.gpg] https://packages.sury.org/php/ bullseye main
+EOF
+
+    wget https://packages.sury.org/php/apt.gpg -O sury-keyring.gpg
+}
+
+
+
 function standby_cron () {
 
     to_file_dir
 
-    # shepherd.php が使えない場合は「getepg.php」 https://katauna.hatenablog.com/entries/2015/05/26
-    # debian系ではおそらく shepherd.php で問題なし。
     # コンテナ化の都合で /var/www/html 以下に shepherd.php がある扱い
     cat <<"EOF" > shepherd_cron
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 29 */2 * * *   www-data	/var/www/html/shepherd.php
+EOF
+
+    # shepherd.php が使えない場合は「getepg.php」 https://katauna.hatenablog.com/entries/2015/05/26
+    # PHP 8.0 以降では shepherd.php が動かない模様
+
+    cat <<"EOF" > getegp_cron
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+29 */2 * * *   www-data	/var/www/html/getegp.php >/dev/null 2>&1 &
 EOF
 }
 
@@ -233,6 +253,22 @@ function print_end_message () {
 
 ###  Main ###
 
+if [ "$1" == "--refresh" ]; then
+
+    docker-compose down
+     
+    docker volume rm epgrec-db-vol \
+                     epgrec-app-vol \
+                     epgrec-schedule-vol
+    docker network rm epgrec-internal-net
+    docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'` 
+
+    # 乱暴な消し方になるため注意
+    # docker system prune -f
+
+    rm -Rf epgrec/files    
+fi
+
 create_file_dir
 
 is_exist_gr_channel
@@ -272,6 +308,7 @@ standby_epgrec_depends
 standby_gr_channel_file
 
 standby_deb_multimedia_supporeted_apt
+standby_sury_php_apt
 standby_cron
 
 set_tuner_count

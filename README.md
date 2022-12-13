@@ -1,4 +1,4 @@
-# epgrecUNA on Docker
+# epgrecUNA on Dockerlxc.cgroup2.devices.allow = c *:* rwm
 
 ## 忙しいのでどうしたらいいか 5 秒 で説明してください。
 
@@ -51,29 +51,27 @@ docker-compose up -d
 
 ```
 docker-compose down
-docker volume prune -f
-docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'`
-docker system prune -f
 
-rm -Rf epgrec/files
-```
+docker volume rm epgrec-db-vol \
+                 epgrec-app-vol \
+                 epgrec-schedule-vol
+                 
+docker network rm epgrec-internal-net
+docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'` 
 
-を実行後
+rm -Rf epgrec/files    
 
-
-```
 ./standby.sh
 ```
 
-を実行してください。
+あるいは
 
-ただし、使用中のマシンで別コンテナを動かしたり停止している場合は惨事になるかもしれません。prune してるので消えてはいけないボリュームの消滅などがあり得ます。
+```
+# 上記コマンドを叩いたのと同じ状態になります。
+./standby.sh --refresh 
+```
 
-* epgrec-db-vol
-* epgrec-app-vol
-* epgrec-schedule-vol
-
-を手動で消すなどのご対応をお願いします。
+を実行してください。履歴等を思い切り処分したい場合は `docker system prune -f` でお願いします。
 
 ## 一部だけやり直したい
 
@@ -87,13 +85,22 @@ mysql のイメージは所定の Docker ボリュームが空か否かで挙動
 
 ### epgrec-app
 
-epgrec-app-vol (コンテナの /var/www/html にマウント）を削除後に同名のボリュームを作成し epgrecUNA のファイルをコピーします。
+epgrecUNA は epgrec-app-vol （Web アプリ保存先）、epgrec-schedule-vol（at / cron ジョブ保存先）のボリュームを使用しています。
 
-ただし at / cron のジョブが保存されている epgrec-schedule-vol がそのままなので、後日変なジョブが走る可能性があります。
+Web アプリ載せ替え程度であれば epgrec-app-vol の削除のみでよいですが、録画ジョブも消したい場合は epgrec-schedule-vol も削除してください。
 
-* epgrec-app-vol と epgrec-schedule-vol の 2 ボリュームを消して `docker build` でイメージごと作りなおす
 
-という手が楽かと思われます。
+```
+docker-compose rm epgrec-app-cnt
+
+# at / cron ジョブも消したい場合は epgrec-schedule-vol も削除
+docker volume rm epgrec-app-vol
+
+docker-compose build --no-cache epgrec-app
+docker-compose up --force-recreate -d
+```
+
+これで epgrecUNA のイメージが再作成されます。
 
 ## 構成を教えて
 
@@ -113,7 +120,9 @@ http://localhost:8080/ でブラウザが真っ白になった場合は http://l
 
 ### どこに録画されますか
 
-録画ファイルはホストの「/var/recv」に保存されます。保存先を変えたい場合は docker-compose.yml を修正してください。
+録画ファイルはホストの「/var/recv」に保存されます。
+
+保存先を変えたい場合は docker-compose.yml を修正してください。
 
 「/var/recv:/var/www/html/video」( : 区切り) の左側がホスト側ディレクトリです。 
 
@@ -121,17 +130,17 @@ http://localhost:8080/ でブラウザが真っ白になった場合は http://l
 
 あのカードは必要です。カードがなければ録画は失敗しますのでご注意ください。
 
-docker-compose.yml の「devices:」にある「/dev/bus/usb」は USB カードリーダーをコンテナで使用するための設定ですから削除しないようご注意ください。
+docker-compose.yml の「devices:」にある「/dev/bus/usb」は USB カードリーダーをコンテナで使用するための設定です。削除しないようご注意ください。
 
 ## 注意点など
 
 ### 1 : バッドプラクティスあり
 
-at / cron などのコマンド実行に混乱を来すこと、k8s での使用は想定していないことから 1 プロセス 1 コンテナ構成は放棄。とにかく動かすことを最優先とした構成です。
+at / cron などのコマンド実行に混乱を来すこと、k8s での使用は想定していないことから 1 プロセス 1 コンテナ構成は放棄。動かすことが最優先の構成です。
 
-最悪は強引な落とし方も起こり得る（「SIGKILL」で強制停止）ので「バッド」なのですが http サーバ等であれば耐えられます。
+(最悪は)強引な落とし方も起こり得る（「SIGKILL」で強制停止）ので「バッド」なのですが http サーバ等であればおそらくは耐えられます。
 
-ですがデータベースには不都合な落とし方のため DB コンテナを別途用意。
+SIGKILL はデータベースには不都合な落とし方のため DB コンテナを別途用意。
 
 ### 2 : 変なエラーが出ました -> TS ファイルの保存先に index.html はありますか
 
@@ -141,38 +150,74 @@ at / cron などのコマンド実行に混乱を来すこと、k8s での使用
 
 ない場合は index.html ファイルを作ってしまうこと（`echo "<html><html>" > /your/save/path/index.html`)。
 
-### 3 : 最低限の設定のみ、ノー設定でいきなり！　トラコンなどは期待しないでください
+### 3 : 最低限の設定のみ。ノー設定で「いきなり！　トラコン」は期待しないでください
 
 別の録画システムが使えない場合に備え epgrecUNA のコンテナ化ができるようにしました。
 
 ですが最低限の設定のみ。たとえば HW エンコード設定などは行いませんし、設定準備を行うスクリプトも簡易的に作成したもの。
 
-epgrec/config.php や epgrec/setting/trans_config.php （トランスコード設定）の設定や ffmpeg のセルフビルドなど、より高機能な epgrecUNA を目指すのも一つの手です。
+epgrec/config.php や epgrec/setting/trans_config.php （トランスコード設定）の設定や ffmpeg のセルフビルドなど、より高機能な epgrecUNA を目指すのはいかがでしょうか。
 
 ### 4 : Docker イメージのビルド中にコケた！　助けろ！
 
-おそらく Rasberry pi 4 の 64bit 版ではないでしょうか？
+おそらく Rasberry pi 4 の 64bit 版ではないでしょうか？　epgrec/Dockerfile に対策を記載しておりますのでご参照ください。
 
-epgrec/Dockerfile に対策を記載しておりますのでご参照ください。
-
-## モチベらしきもの
-
-サーバサイド javascript 系の録画システムがうまく動かないこともあるとかないとか、その辺りの事情。
-
-すでに開発が止まって久しい epgrecUNA を使うより別のシステムを使うほうがいいとは思いますが。
-
-「需要があるかどうか分からないため一時的に公開する」「Dockerの使い方が適当だったからマジメに練習したい、モチベが出るものを探していた、epgrecUNAはモチベ出そう」程度のもの。
-
-後日（epgrecUNA のリポジトリともども）削除するかもしれません。
-
-## 別の手段
+### 5 : Docker以外の手段はない？
 
 epgrecUNA と相性がいいのは LXC です。KVM などを使うと速度低下が困りもの（録画系はそれなりにマシンパワーを要します）。
 
 やっておいて何ですが epgrecUNA と Docker との相性については疑問です。at / cron 周りが特に。
 
-## 参考サイト：
+もし Docker ではなく LXC で環境を構築したい場合のアドバイスですが、デバイスの使用許可絡みの設定でミスが起こりやすいです。
 
-以下の Dockerfile や docker-compose.yml を参考にしました。mysql 周りはほぼそのまま。マルチステージビルドへの対応や debian 11 への更新が相違点です。
+/var/lib/lxc/[container]/config を開き、以下のような設定を書くことになると思いますが「cgroup のバージョン」にご注意ください。
+
+```
+# ホスト側のディストリ次第ですが
+
+# cgroup v1 使用のディストリなら lxc.cgroup.devices （cgoup1　ではなく cgroup でよいです）
+lxc.cgroup.devices.allow = c *:* rwm
+
+# ホストが cgroup2 使用なら lxc.cgroup2.devices (cgroup 2 と数字をつける必要あり）
+lxc.cgroup2.devices.allow = c *:* rwm
+
+```
+
+### 6 : Debian で nvidia-uvm が見えないから NVENC できない問題
+
+いずれはトラコン設定をしたくなると思いますが Debian + NVIDIA にて NVENC をしたい場合、問題が起こります。
+
+エンコード時に必要な「nvidia-uvm」が見えないかもしれません。
+
+Ubuntu だと問題にならないのですが Debian だと問題になります。以下を参照して「ホスト側」に設定を入れてください。
+
+```
+cat <<EOF | sudo tee /etc/modules-load.d/nvidia.conf > /dev/null
+nvidia-drm
+nvidia
+nvidia_uvm
+EOF
+
+cat <<"EOF" | sudo tee /etc/udev/rules.d/99-nvidia-uvm.rules > /dev/null
+KERNEL=="nvidia", RUN+="/bin/bash -c '/usr/bin/nvidia-smi -L && /bin/chmod 666 /dev/nvidia*'"
+KERNEL=="nvidia_uvm", RUN+="/bin/bash -c '/usr/bin/nvidia-modprobe -c0 -u && /bin/chmod 0666 /dev/nvidia-uvm*'"
+EOF
+```
+
+参考サイト : https://kwatanabe.hatenablog.jp/entry/2020/10/04/202409
+
+## 7 : どこかでこの Dockerfile を見たことがあるんですが
+
+以下の Dockerfile や docker-compose.yml を参考にしました。MITにしておきます、とのことだったのでmysql 周りはほぼそのままお借りしました。
 
 https://github.com/l3tnun/docker-epgrec-una
+
+マルチステージビルドへの対応や debian 11 への更新が相違点です。
+
+気づいたんですがこの方は EPGStation の開発者なのでは。
+
+## モチベらしきもの
+
+サーバサイド javascript 系の録画システムがうまく動かないこともあるとかないとか、その辺りの事情。
+
+すでに開発が止まって久しい epgrecUNA を使うより別のシステムを使うほうがいいとは思いますが。このリポジトリは後日（epgrecUNA のリポジトリともども）削除するかもしれません。

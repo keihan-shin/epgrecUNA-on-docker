@@ -1,4 +1,4 @@
-# epgrecUNA on Dockerlxc.cgroup2.devices.allow = c *:* rwm
+# epgrecUNA on Docker
 
 ## 忙しいのでどうしたらいいか 5 秒 で説明してください。
 

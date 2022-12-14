@@ -201,7 +201,7 @@ function set_tuner_count () {
        
     if [ $? -eq 0 ]; then
         if [ `expr $tuner_count` -ge 1 ]; then
-            sed -ie "s/TUNER_UNIT1', [0-9]*/TUNER_UNIT1', $tuner_count/" $FILE_DIR/epgrecUNA/epgrecUNA/epgrec/config.php
+            sed -i "s/TUNER_UNIT1', [0-9]*/TUNER_UNIT1', $tuner_count/" $FILE_DIR/epgrecUNA/epgrecUNA/epgrec/config.php
             passed=1
         fi
     fi

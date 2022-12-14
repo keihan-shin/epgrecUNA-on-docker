@@ -215,6 +215,46 @@ https://github.com/l3tnun/docker-epgrec-una
 
 気づいたんですがこの方は EPGStation の開発者なのでは。
 
+## バックアップやリストアをどうしたらいい
+
+### DB のデータ / at 等のジョブ（録画実行のジョブなど） / epgrecUNA そのもの
+
+docker-compose.yml があるディレクトリで `script/manage_vol.sh` を実行してください。
+
+実行できない場合は `chmod 755 script/manage_vol.sh` で実行権限を設定してください。
+
+* バックアップ
+
+```
+docker-compose down
+
+# backup ディレクトリ以下に ボリュームの tarball 作成
+sciript/manage_vol.sh backup
+
+docker-compose up -d
+```
+
+* リストア
+
+```
+docker-compose down
+
+# backup で取得した各 tarball を特定ボリュームに書き戻し
+sciript/manage_vol.sh restore
+
+docker-compose up -d
+```
+
+*注意*
+
+親フォルダ名に「日本語」を使うとバックアップ・リストアがうまく行かないため、ご注意ください。
+
+例えば本リポジトリが「epgrecUNA_録画サーバ/docker-compose.yml」とリネームされていた場合、ボリューム名指定に支障が出ます。
+
+### TSファイル等
+
+デフォルトではホスト側の /var/recv にあります。ご自身で適宜管理をお願いしたします。
+
 ## モチベらしきもの
 
 サーバサイド javascript 系の録画システムがうまく動かないこともあるとかないとか、その辺りの事情。

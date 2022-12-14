@@ -68,12 +68,6 @@ function print_start_message () {
     echo "epgrecUNA の Docker イメージ化作業を行います。"
     echo "本スクリプトはイメージ化に必要なファイルのダウンロード、最小限の設定を実施します。"
     echo ""
-    echo "epgrecUNA のカスタマイズが必要な方へ："
-    echo "epgrec/config.php, Dockerfile, docker-compose.yml などの設定ファイルを修正後、以下を実行してください。イメージを再生成します。" 
-    echo ""
-    echo "docker-compose build --no-cache epgrec-app"
-    echo "docker-compose up --force-recreate -d"
-    echo ""
     echo "-------------------------------------------------------------"
 }
 
@@ -274,10 +268,19 @@ function print_end_message () {
     echo "アドレスは http://localhost:8080/ がデフォルトです。"
     echo "データベース名などがわからない場合は「docker-compose.yml」をご確認ください。"
     echo ""
+    echo "epgrecUNA をカスタマイズされる方へ："
+    echo "カスタマイズ後は以下を実行してください。イメージを再生成します。" 
+    echo ""
+    echo "docker-compose build --no-cache epgrec-app"
+    echo "docker-compose up --force-recreate -d"
+    echo ""
     echo "-------------------------------------------------------------"
     echo ""
 }
 
+function standby_vol_manage_script () {
+    chmod 755 script/manage_vol.sh
+}
 
 ###  Main ###
 
@@ -313,5 +316,7 @@ standby_cron
 set_tuner_count
 
 gen_docker_compose_yml
+
+standby_vol_manage_script
 
 print_end_message

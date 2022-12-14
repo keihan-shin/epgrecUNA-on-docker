@@ -40,6 +40,21 @@ function get_param_numeric () {
     fi
 }
 
+function refresh_compose () {
+    docker-compose down
+     
+    docker volume rm `docker volume ls | grep "epgrec-app" | awk '{print $2}'` \
+                     `docker volume ls | grep "epgrec-schedule" | awk '{print $2}'` \
+                     `docker volume ls | grep "epgrec-db" | awk '{print $2}'`
+
+    docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'` 
+
+    # 乱暴な消し方になるため注意
+    # docker system prune -f
+
+    rm -Rf epgrec/files    
+}
+
 # Docker イメージ作成時に使うファイルを保存するためのフォルダを作る
 # 他の処理を行う前にこの関数を実行すること
 function create_file_dir () {
@@ -60,6 +75,27 @@ function print_start_message () {
     echo "docker-compose up --force-recreate -d"
     echo ""
     echo "-------------------------------------------------------------"
+}
+
+function print_gr_channel_not_found () {
+    echo ""
+    echo "gr_channel.php ファイルが見つかりませんでした。"
+    echo ""
+    echo "README.gr_channel を参照し gr_channel.php を作成してください。"
+    echo ""
+    echo "処理を中断します。"
+    echo ""
+}
+
+function print_gr_channel_fix_required () {
+    echo ""
+    echo "gr_channel.php ファイルが修正されていない可能性があります。"
+    echo ""
+    echo "1. README.gr_channel を開き、書式を確認します。"
+    echo "2. gr_channel.php を開き、適切な地デジチャンネル番号を指定します。"
+    echo ""
+    echo "処理を中断します。"
+    echo ""
 }
 
 function standby_epgrecUNA () {
@@ -139,21 +175,13 @@ function standby_cron () {
     to_file_dir
 
     # コンテナ化の都合で /var/www/html 以下に shepherd.php がある扱い
+    # PHP 8.0 以降では shepherd.php は動かないため getepg.php を使用のこと
+    # epgrecUNA 公式に getepg.php あり
     cat <<"EOF" > shepherd_cron
 SHELL=/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 29 */2 * * *   www-data	/var/www/html/shepherd.php
-EOF
-
-    # shepherd.php が使えない場合は「getepg.php」 https://katauna.hatenablog.com/entries/2015/05/26
-    # PHP 8.0 以降では shepherd.php が動かない模様
-
-    cat <<"EOF" > getegp_cron
-SHELL=/bin/sh
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-
-29 */2 * * *   www-data	/var/www/html/getegp.php >/dev/null 2>&1 &
 EOF
 }
 
@@ -254,49 +282,20 @@ function print_end_message () {
 ###  Main ###
 
 if [ "$1" == "--refresh" ]; then
-
-    docker-compose down
-     
-    docker volume rm epgrecuna-on-docker_epgrec-db-vol \
-                     epgrecuna-on-docker_epgrec-app-vol \
-                     epgrecuna-on-docker_epgrec-schedule-vol
-    docker network rm *epgrec-internal-net
-    docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'` 
-
-    # 乱暴な消し方になるため注意
-    # docker system prune -f
-
-    rm -Rf epgrec/files    
+    refresh_compose
 fi
 
 create_file_dir
 
 is_exist_gr_channel
 if [ $? -ne 0 ]; then
-    echo ""
-    echo "gr_channel.php ファイルが見つかりませんでした。以下を実行してください。"
-    echo ""
-    echo "1. gr_channel.php.sample の内容を確認し、各環境に応じた内容を記載する"
-    echo "(地デジのチャンネル番号指定ファイルです）。"
-    echo "2. gr_channel.php.sample を gr_channel.php にリネームする。"
-    echo ""
-    echo "処理を中断します。"
-    echo ""
-
+    print_gr_channel_not_found
     exit 1
 fi
 
 is_unfixed_gr_channel
 if [ $? -eq 0 ]; then
-    echo ""
-    echo "gr_channel.php ファイルが修正されていない可能性があります。"
-    echo ""
-    echo "1. README.gr_channel を開き、書式を確認します。"
-    echo "2. gr_channel.php を開き、適切な地デジチャンネル番号を指定します。"
-    echo ""
-    echo "処理を中断します。"
-    echo ""
-    
+    print_gr_channel_fix_required    
     exit 1
 fi
 

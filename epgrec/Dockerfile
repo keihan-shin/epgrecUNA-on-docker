@@ -59,7 +59,10 @@ FROM debian:bullseye
 # 事前準備
 RUN apt-get update && \
     apt-get -y --no-install-recommends install \
-    ca-certificates && \
+    ca-certificates \
+    apt-transport-https \
+    software-properties-common \
+    gnupg2 && \
     update-ca-certificates
 
 # マルチステージ 1 段目でビルドしたファイル、準備した設定ファイルのコピーと
@@ -76,6 +79,7 @@ COPY --from=build-cmd /usr/local/bin/recpt1ctl /usr/local/bin/
 COPY --from=build-cmd /usr/local/bin/epgdump /usr/local/bin/
 
 COPY ./files/sources.list /etc/apt/sources.list
+
 COPY ./files/deb-multimedia.list /etc/apt/sources.list.d/deb-multimedia.list
 COPY ./files/deb-multimedia-keyring.gpg /etc/apt/keyrings/deb-multimedia-keyring.gpg
 
@@ -89,6 +93,11 @@ RUN apt-get update && \
     apt-get -y dist-upgrade && \
     apt-get autoremove && \
     apt-get autoclean
+
+# sury.org 由来の php を使いたい場合（2022 年 12 月現在 php 5.6 - 8.2 まで使用可）
+#COPY ./files/sury.list /etc/apt/sources.list.d/sury.list
+#COPY ./files/sury-keyring.gpg /etc/apt/keyrings/sury-keyring.gpg
+#RUN apt-get update 
 
 # サーバ構築開始
 #

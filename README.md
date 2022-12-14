@@ -52,11 +52,10 @@ docker-compose up -d
 ```
 docker-compose down
 
-docker volume rm epgrecuna-on-docker_epgrec-db-vol \
-                 epgrecuna-on-docker_epgrec-app-vol \
-                 epgrecuna-on-docker_epgrec-schedule-vol
+docker volume rm `docker volume ls | grep -e "epgrec-app" | awk '{print $2}'` \
+                 `docker volume ls | grep -e "epgrec-schedule" | awk '{print $2}'` \
+                 `docker volume ls | grep -e "epgrec-db" | awk '{print $2}'`
                  
-docker network rm epgrec-internal-net
 docker rmi `docker image ls | grep -e "epgrec-app" | awk '{print $3}'` 
 
 rm -Rf epgrec/files    
